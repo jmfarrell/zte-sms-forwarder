@@ -7,6 +7,11 @@ REFERER="$URL/index.html"
 URL_SET="$URL/goform/goform_set_cmd_process"
 URL_GET="$URL/goform/goform_get_cmd_process"
 
+if [ ! -z "$(apt-cache policy jq | grep Installed | grep none)" ]; then
+  echo 'jq is not installed'
+  exit
+fi
+
 IS_LOGGED=$(curl -s --header "Referer: $REFERER" $URL_GET\?multi_data\=1\&isTest\=false\&sms_received_flag_flag\=0\&sts_received_flag_flag\=0\&cmd\=loginfo | jq --raw-output .loginfo)
 
 # Login
@@ -17,7 +22,7 @@ else
     echo "Loggining in to ZTE"
 
     # Disable wifi
-    curl -s --header "Referer: $REFERER" -d 'goformId=SET_WIFI_INFO&isTest=false&m_ssid_enable=0&wifiEnabled=0' $URL_SET
+    curl -s --header "Referer: $REFERER" -d 'goformId=SET_WIFI_INFO&isTest=false&m_ssid_enable=0&wifiEnabled=0' $URL_SET > /dev/null
 
     if [ "$LOGIN" == "0" ]; then
       echo "Logged in to ZTE"
