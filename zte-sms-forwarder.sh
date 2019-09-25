@@ -33,10 +33,9 @@ else
 fi
 
 SMS=$(curl -s --header "Referer: $REFERER" $URL_GET\?multi_data\=1\&isTest\=false\&sms_received_flag_flag\=0\&sts_received_flag_flag\=0\&cmd\=sms_unread_num)
-# NEW_SMS=$(echo "$SMS" | jq --raw-output .sms_received_flag)
 UNREAD_SMS=$(echo "$SMS" | jq --raw-output .sms_unread_num)
 
-# Get new SMS
+# Get unread messages
 if [ "$UNREAD_SMS" == "0" ]; then
   echo "You have no unread message"
   exit
@@ -50,13 +49,15 @@ else
 
     if [ "$TAG" == "1" ]; then
       ID=$(echo $MESSAGE | jq --raw-output .id)
-      CONTENT=$(echo $MESSAGE | jq --raw-output .content | xxd -r -p)
-
-      # Set message as read
-      curl -s --header "Referer: $REFERER" -d "isTest=false&goformId=SET_MSG_READ&msg_id=$ID;&tag=0" $URL_SET
+      CONTENT=$(echo $MESSAGE | jq --raw-output .content | tr '\0' '\n' | xxd -r -p | tr -d '\0')
 
       echo "Message: $CONTENT"
 
+      # Set message as read
+      curl -s --header "Referer: $REFERER" -d "isTest=false&goformId=SET_MSG_READ&msg_id=$ID;&tag=0" $URL_SET > /dev/null
+
+      # Send a push notification
+      echo "Sending a push notification"
       curl -s \
         --form-string "token=$PUSHOVER_TOKEN" \
         --form-string "user=$PUSHOVER_USER" \
