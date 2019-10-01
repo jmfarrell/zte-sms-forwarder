@@ -2,6 +2,9 @@
 PUSHOVER_TOKEN="<token>"
 PUSHOVER_USER="<user>"
 
+# The list of blocked keywords
+declare -a BLOCKED=("uber eats" "block another keyword")
+
 URL=http://192.168.0.1
 REFERER="$URL/index.html"
 URL_SET="$URL/goform/goform_set_cmd_process"
@@ -50,6 +53,14 @@ else
 
       echo "Message: $CONTENT"
 
+      # End right there if a blocked keyword is found
+      for STR in "${BLOCKED[@]}"; do
+        if [ "$(echo $CONTENT | grep -i "$STR")" ]; then
+          echo "$STR is blocked"
+          exit
+        fi
+      done
+
       # Set message as read
       curl -s --header "Referer: $REFERER" -d "isTest=false&goformId=SET_MSG_READ&msg_id=$ID;&tag=0" $URL_SET > /dev/null
 
@@ -59,9 +70,9 @@ else
         --form-string "token=$PUSHOVER_TOKEN" \
         --form-string "user=$PUSHOVER_USER" \
         --form-string "message=$CONTENT" \
-        --form-string "title=ZTE SMS Forwarded" \
+        --form-string "title=ZTE SMS Forwarder" \
         --form-string "device=iPhone8" \
-        https://api.pushover.net/1/messages.json
+	https://api.pushover.net/1/messages.json
     fi
   done
 fi
