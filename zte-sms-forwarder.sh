@@ -44,7 +44,7 @@ else
 
   MESSAGES=$(curl -s --header "Referer: $REFERER" $URL_GET\?isTest\=false\&cmd\=sms_data_total\&page\=0\&data_per_page\=500\&mem_store\=1\&tags\=10\&order_by\=order+by+id+desc)
 
-  for MESSAGE in $(echo $MESSAGES | jq -c '.messages | values []'); do
+  for MESSAGE in $(echo $MESSAGES | tr -d ' ' | jq -c '.messages | values []'); do
     TAG=$(echo $MESSAGE | jq --raw-output .tag)
 
     if [ "$TAG" == "1" ]; then
@@ -53,6 +53,9 @@ else
 
       echo "Message: $CONTENT"
 
+      # Set message as read
+      curl -s --header "Referer: $REFERER" -d "isTest=false&goformId=SET_MSG_READ&msg_id=$ID;&tag=0" $URL_SET > /dev/null
+
       # End right there if a blocked keyword is found
       for STR in "${BLOCKED[@]}"; do
         if [ "$(echo $CONTENT | grep -i "$STR")" ]; then
@@ -60,9 +63,6 @@ else
           exit
         fi
       done
-
-      # Set message as read
-      curl -s --header "Referer: $REFERER" -d "isTest=false&goformId=SET_MSG_READ&msg_id=$ID;&tag=0" $URL_SET > /dev/null
 
       # Send a push notification
       echo "Sending a push notification"
