@@ -5,10 +5,20 @@ PUSHOVER_USER="<user>"
 # The list of blocked keywords
 declare -a BLOCKED=("uber eats" "block another keyword")
 
-URL=http://192.168.0.1
+# Optionally override default password and IP from command line.
+# PASSWD is on on-the-wire format as captured by Wireshark or in
+# Chrome Debugger Network tab. For my ZTE MF286D the encoded password
+# can be generated from the PLAINTEXT with the following command:
+#    "echo -n PLAINTEXT | base 64 | tr d \n | sha256sum".
+PASSWD=${1-"YWRtaW4="}
+IPADDR=${2-"192.168.0.1"}
+
+URL=http://$IPADDR
 REFERER="$URL/index.html"
 URL_SET="$URL/goform/goform_set_cmd_process"
 URL_GET="$URL/goform/goform_get_cmd_process"
+
+
 
 command -v jq >/dev/null 2>&1 || { echo >&2 "'jq' is required but not installed. Aborting."; exit 1; }
 
@@ -18,7 +28,7 @@ IS_LOGGED=$(curl -s --header "Referer: $REFERER" $URL_GET\?multi_data\=1\&isTest
 if [ "$IS_LOGGED" == "ok" ]; then
     echo "Logged in to ZTE"
 else
-    LOGIN=$(curl -s --header "Referer: $REFERER" -d 'isTest=false&goformId=LOGIN&password=YWRtaW4=' $URL_SET | jq --raw-output .result)
+    LOGIN=$(curl -s --header "Referer: $REFERER" -d 'isTest=false&goformId=LOGIN&password=' $PASSWD $URL_SET | jq --raw-output .result)
     echo "Loggining in to ZTE"
 
     # Disable wifi
