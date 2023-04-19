@@ -18,7 +18,7 @@ REFERER="$URL/index.html"
 URL_SET="$URL/goform/goform_set_cmd_process"
 URL_GET="$URL/goform/goform_get_cmd_process"
 
-
+COOKIEJAR=$(mktemp --suffix .zte-sms-forwarder)
 
 command -v jq >/dev/null 2>&1 || { echo >&2 "'jq' is required but not installed. Aborting."; exit 1; }
 
@@ -28,21 +28,22 @@ IS_LOGGED=$(curl -s --header "Referer: $REFERER" $URL_GET\?multi_data\=1\&isTest
 if [ "$IS_LOGGED" == "ok" ]; then
     echo "Logged in to ZTE"
 else
-    LOGIN=$(curl -s --header "Referer: $REFERER" -d 'isTest=false&goformId=LOGIN&password='$PASSWD $URL_SET | jq --raw-output .result)
-    echo "Loggining in to ZTE"
+    echo "Logging in to ZTE"
+    LOGIN=$(curl -s -c $COOKIEJAR --header "Referer: $REFERER" -d 'isTest=false&goformId=LOGIN&password='$PASSWD $URL_SET | jq --raw-output .result)
 
     # Disable wifi
-    curl -s --header "Referer: $REFERER" -d 'goformId=SET_WIFI_INFO&isTest=false&m_ssid_enable=0&wifiEnabled=0' $URL_SET > /dev/null
+    curl -s -b $COOKIEJAR --header "Referer: $REFERER" -d 'goformId=SET_WIFI_INFO&isTest=false&m_ssid_enable=0&wifiEnabled=0' $URL_SET > /dev/null
 
     if [ "$LOGIN" == "0" ]; then
       echo "Logged in to ZTE"
     else
       echo "Could not login to ZTE"
+      rm $COOKIEJAR
       exit
     fi
 fi
 
-SMS=$(curl -s --header "Referer: $REFERER" $URL_GET\?multi_data\=1\&isTest\=false\&sms_received_flag_flag\=0\&sts_received_flag_flag\=0\&cmd\=sms_unread_num)
+SMS=$(curl -s -b $COOKIEJAR --header "Referer: $REFERER" $URL_GET\?multi_data\=1\&isTest\=false\&sms_received_flag_flag\=0\&sts_received_flag_flag\=0\&cmd\=sms_unread_num)
 UNREAD_SMS=$(echo "$SMS" | jq --raw-output .sms_unread_num)
 
 # Get unread messages
@@ -52,7 +53,7 @@ if [ "$UNREAD_SMS" == "0" ]; then
 else
   echo "You have $UNREAD_SMS unread messages"
 
-  MESSAGES=$(curl -s --header "Referer: $REFERER" $URL_GET\?isTest\=false\&cmd\=sms_data_total\&page\=0\&data_per_page\=500\&mem_store\=1\&tags\=10\&order_by\=order+by+id+desc)
+  MESSAGES=$(curl -s -b $COOKIEJAR --header "Referer: $REFERER" $URL_GET\?isTest\=false\&cmd\=sms_data_total\&page\=0\&data_per_page\=500\&mem_store\=1\&tags\=10\&order_by\=order+by+id+desc)
 
   for MESSAGE in $(echo $MESSAGES | tr -d ' ' | jq -c '.messages | values []'); do
     TAG=$(echo $MESSAGE | jq --raw-output .tag)
@@ -64,13 +65,14 @@ else
       echo "Message: $CONTENT"
 
       # Set message as read
-      curl -s --header "Referer: $REFERER" -d "isTest=false&goformId=SET_MSG_READ&msg_id=$ID;&tag=0" $URL_SET > /dev/null
+      curl -s -b $COOKIEJAR --header "Referer: $REFERER" -d "isTest=false&goformId=SET_MSG_READ&msg_id=$ID;&tag=0" $URL_SET > /dev/null
 
       # End right there if a blocked keyword is found
       for STR in "${BLOCKED[@]}"; do
         if [ "$(echo $CONTENT | grep -i "$STR")" ]; then
           echo "$STR is blocked"
-          exit
+	  rm $COOKIEJAR
+	  exit
         fi
       done
 
@@ -86,3 +88,5 @@ else
     fi
   done
 fi
+
+rm $COOKIEJAR
