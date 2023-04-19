@@ -28,7 +28,7 @@ IS_LOGGED=$(curl -s --header "Referer: $REFERER" $URL_GET\?multi_data\=1\&isTest
 if [ "$IS_LOGGED" == "ok" ]; then
     echo "Logged in to ZTE"
 else
-    LOGIN=$(curl -s --header "Referer: $REFERER" -d 'isTest=false&goformId=LOGIN&password=' $PASSWD $URL_SET | jq --raw-output .result)
+    LOGIN=$(curl -s --header "Referer: $REFERER" -d 'isTest=false&goformId=LOGIN&password='$PASSWD $URL_SET | jq --raw-output .result)
     echo "Loggining in to ZTE"
 
     # Disable wifi
