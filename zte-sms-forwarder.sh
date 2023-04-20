@@ -18,9 +18,10 @@ REFERER="$URL/index.html"
 URL_SET="$URL/goform/goform_set_cmd_process"
 URL_GET="$URL/goform/goform_get_cmd_process"
 
+command -v jq >/dev/null 2>&1 || { echo >&2 "'jq' is required but not installed. Aborting."; exit 1; }
+
 COOKIEJAR=$(mktemp --suffix .zte-sms-forwarder)
 
-command -v jq >/dev/null 2>&1 || { echo >&2 "'jq' is required but not installed. Aborting."; exit 1; }
 
 echo "Logging in to ZTE"
 LOGIN=$(curl -s -c $COOKIEJAR --header "Referer: $REFERER" -d 'isTest=false&goformId=LOGIN&password='$PASSWD $URL_SET | jq --raw-output .result)
@@ -40,6 +41,7 @@ UNREAD_SMS=$(echo "$SMS" | jq --raw-output .sms_unread_num)
 # Get unread messages
 if [ "$UNREAD_SMS" == "0" ]; then
   echo "You have no unread message"
+  rm $COOKIEJAR
   exit
 else
   echo "You have $UNREAD_SMS unread messages"
