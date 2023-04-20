@@ -22,26 +22,20 @@ COOKIEJAR=$(mktemp --suffix .zte-sms-forwarder)
 
 command -v jq >/dev/null 2>&1 || { echo >&2 "'jq' is required but not installed. Aborting."; exit 1; }
 
-IS_LOGGED=$(curl -s --header "Referer: $REFERER" $URL_GET\?multi_data\=1\&isTest\=false\&sms_received_flag_flag\=0\&sts_received_flag_flag\=0\&cmd\=loginfo | jq --raw-output .loginfo)
+echo "Logging in to ZTE"
+LOGIN=$(curl -s -c $COOKIEJAR --header "Referer: $REFERER" -d 'isTest=false&goformId=LOGIN&password='$PASSWD $URL_SET | jq --raw-output .result)
 
-# Login
-if [ "$IS_LOGGED" == "ok" ]; then
+# Disable wifi
+curl -s -b $COOKIEJAR --header "Referer: $REFERER" -d 'goformId=SET_WIFI_INFO&isTest=false&m_ssid_enable=0&wifiEnabled=0' $URL_SET > /dev/null
+
+if [ "$LOGIN" == "0" ]; then
     echo "Logged in to ZTE"
 else
-    echo "Logging in to ZTE"
-    LOGIN=$(curl -s -c $COOKIEJAR --header "Referer: $REFERER" -d 'isTest=false&goformId=LOGIN&password='$PASSWD $URL_SET | jq --raw-output .result)
-
-    # Disable wifi
-    curl -s -b $COOKIEJAR --header "Referer: $REFERER" -d 'goformId=SET_WIFI_INFO&isTest=false&m_ssid_enable=0&wifiEnabled=0' $URL_SET > /dev/null
-
-    if [ "$LOGIN" == "0" ]; then
-      echo "Logged in to ZTE"
-    else
-      echo "Could not login to ZTE"
-      rm $COOKIEJAR
-      exit
-    fi
+    echo "Could not login to ZTE"
+    rm $COOKIEJAR
+    exit
 fi
+
 
 SMS=$(curl -s -b $COOKIEJAR --header "Referer: $REFERER" $URL_GET\?multi_data\=1\&isTest\=false\&sms_received_flag_flag\=0\&sts_received_flag_flag\=0\&cmd\=sms_unread_num)
 UNREAD_SMS=$(echo "$SMS" | jq --raw-output .sms_unread_num)
