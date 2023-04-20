@@ -25,9 +25,6 @@ command -v jq >/dev/null 2>&1 || { echo >&2 "'jq' is required but not installed.
 echo "Logging in to ZTE"
 LOGIN=$(curl -s -c $COOKIEJAR --header "Referer: $REFERER" -d 'isTest=false&goformId=LOGIN&password='$PASSWD $URL_SET | jq --raw-output .result)
 
-# Disable wifi
-curl -s -b $COOKIEJAR --header "Referer: $REFERER" -d 'goformId=SET_WIFI_INFO&isTest=false&m_ssid_enable=0&wifiEnabled=0' $URL_SET > /dev/null
-
 if [ "$LOGIN" == "0" ]; then
     echo "Logged in to ZTE"
 else
