@@ -23,6 +23,33 @@ command -v jq >/dev/null 2>&1 || { echo >&2 "'jq' is required but not installed.
 COOKIEJAR=$(mktemp --suffix .zte-sms-forwarder)
 
 
+epoch() {
+    date +%s%3N
+}
+
+get_cmd() {
+   curl -b $COOKIEJAR -s --header "Referer: $REFERER" "$URL_GET?isTest=false&cmd=$1&_="$(epoch) \
+        | jq -r ".$1"
+}
+
+get_AD () {
+    # get RD
+    RD=$(get_cmd "RD")
+    # get rd0 a.k.a. rd_params0 a.k.a. wa_inner_version
+    rd0=$(get_cmd "wa_inner_version")
+    # get rd1 a.k.a. rd_params1 a.k.a. cr_version
+    rd1=$(get_cmd "cr_version")
+
+    # compose AD with following formula: AD = md5(md5(rd0+rd1)+RD)
+    MD5_rd=$(echo -n "$rd0$rd1" \
+        | md5sum \
+        | awk '{print $1}')
+
+    echo -n "$MD5_rd$RD" \
+        | md5sum \
+        | awk '{print $1}'
+}
+
 echo "Logging in to ZTE"
 LOGIN=$(curl -s -c $COOKIEJAR --header "Referer: $REFERER" -d 'isTest=false&goformId=LOGIN&password='$PASSWD $URL_SET | jq --raw-output .result)
 
@@ -34,11 +61,13 @@ else
     exit
 fi
 
+# Generate auth token for SET operations
+AD=$(get_AD)
 
+# Get unread messages
 SMS=$(curl -s -b $COOKIEJAR --header "Referer: $REFERER" $URL_GET\?multi_data\=1\&isTest\=false\&sms_received_flag_flag\=0\&sts_received_flag_flag\=0\&cmd\=sms_unread_num)
 UNREAD_SMS=$(echo "$SMS" | jq --raw-output .sms_unread_num)
 
-# Get unread messages
 if [ "$UNREAD_SMS" == "0" ]; then
   echo "You have no unread message"
   rm $COOKIEJAR
@@ -46,6 +75,7 @@ if [ "$UNREAD_SMS" == "0" ]; then
 else
   echo "You have $UNREAD_SMS unread messages"
 
+  # Fetch messages
   MESSAGES=$(curl -s -b $COOKIEJAR --header "Referer: $REFERER" $URL_GET\?isTest\=false\&cmd\=sms_data_total\&page\=0\&data_per_page\=500\&mem_store\=1\&tags\=10\&order_by\=order+by+id+desc)
 
   for MESSAGE in $(echo $MESSAGES | tr -d ' ' | jq -c '.messages | values []'); do
@@ -58,8 +88,11 @@ else
       echo "Message: $CONTENT"
 
       # Set message as read
-      curl -s -b $COOKIEJAR --header "Referer: $REFERER" -d "isTest=false&goformId=SET_MSG_READ&msg_id=$ID;&tag=0" $URL_SET > /dev/null
-
+      MARK=$(curl -s -b $COOKIEJAR --header "Referer: $REFERER" -d "isTest=false&goformId=SET_MSG_READ&msg_id=$ID;&tag=0&AD=$AD" $URL_SET | jq --raw-output .result)
+      if [ "$MARK" != "success" ]; then
+	  echo "Message could not be marked as read."
+      fi;
+  
       # End right there if a blocked keyword is found
       for STR in "${BLOCKED[@]}"; do
         if [ "$(echo $CONTENT | grep -i "$STR")" ]; then
