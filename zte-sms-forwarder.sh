@@ -9,7 +9,7 @@ declare -a BLOCKED=("uber eats" "block another keyword")
 # PASSWD is on on-the-wire format as captured by Wireshark or in
 # Chrome Debugger Network tab. For my ZTE MF286D the encoded password
 # can be generated from the PLAINTEXT with the following command:
-#    "echo -n PLAINTEXT | base 64 | tr d \n | sha256sum".
+#    "echo -n PLAINTEXT | base64 | tr d \n | sha256sum | tr [a-f] [A-F] | awk '{print $1}'".
 PASSWD=${1-"YWRtaW4="}
 IPADDR=${2-"192.168.0.1"}
 
