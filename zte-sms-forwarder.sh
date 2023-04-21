@@ -23,7 +23,7 @@ command -v jq >/dev/null 2>&1 || { echo >&2 "'jq' is required but not installed.
 COOKIEJAR=$(mktemp --suffix .zte-sms-forwarder)
 
 
-# These 3 functions for generating an auth token for SET operations come from
+# These 3 functions for generating a one-time auth token for a SET operation come from
 # https://github.com/gediz/trivial-tools-n-scripts/blob/master/superbox-hacks/v1-login-and-fetch-sms/poc.sh
 # See also https://blog.aydindogm.us/posts/superbox-hacks-v1/
 #
@@ -66,7 +66,6 @@ else
 fi
 
 # Generate auth token for SET operations
-AD=$(get_AD)
 
 # Get unread messages
 SMS=$(curl -s -b $COOKIEJAR --header "Referer: $REFERER" $URL_GET\?multi_data\=1\&isTest\=false\&sms_received_flag_flag\=0\&sts_received_flag_flag\=0\&cmd\=sms_unread_num)
@@ -92,6 +91,7 @@ else
       echo "Message: $CONTENT"
 
       # Set message as read
+      AD=$(get_AD)
       MARK=$(curl -s -b $COOKIEJAR --header "Referer: $REFERER" -d "isTest=false&goformId=SET_MSG_READ&msg_id=$ID;&tag=0&AD=$AD" $URL_SET | jq --raw-output .result)
       if [ "$MARK" != "success" ]; then
 	  echo "Message could not be marked as read."
