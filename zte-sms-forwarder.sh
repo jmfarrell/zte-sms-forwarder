@@ -23,6 +23,10 @@ command -v jq >/dev/null 2>&1 || { echo >&2 "'jq' is required but not installed.
 COOKIEJAR=$(mktemp --suffix .zte-sms-forwarder)
 
 
+# These 3 functions for generating an auth token for SET operations come from
+# https://github.com/gediz/trivial-tools-n-scripts/blob/master/superbox-hacks/v1-login-and-fetch-sms/poc.sh
+# See also https://blog.aydindogm.us/posts/superbox-hacks-v1/
+#
 epoch() {
     date +%s%3N
 }
