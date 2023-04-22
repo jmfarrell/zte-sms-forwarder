@@ -1,17 +1,19 @@
 #!/bin/bash
-PUSHOVER_TOKEN="<token>"
-PUSHOVER_USER="<user>"
+DEFAULT_PASSWD="YWRtaW4="
+DEFAULT_IPADDR="192.168.0.1"
+DEFAULT_FORWARDING_NUMBER="<phone number>"
 
 # The list of blocked keywords
 declare -a BLOCKED=("uber eats" "block another keyword")
 
-# Optionally override default password and IP from command line.
+# Optionally override default password, IP and SMS forwaring number from command line.
 # PASSWD is on on-the-wire format as captured by Wireshark or in
 # Chrome Debugger Network tab. For my ZTE MF286D the encoded password
 # can be generated from the PLAINTEXT with the following command:
 #    "echo -n PLAINTEXT | base64 | tr d \n | sha256sum | tr [a-f] [A-F] | awk '{print $1}'".
-PASSWD=${1-"YWRtaW4="}
-IPADDR=${2-"192.168.0.1"}
+PASSWD=${1-$DEFAULT_PASSWD}
+IPADDR=${2-$DEFAULT_IPADDR}
+FWDNO=${3-$DEFAULT_FORWARDING_NUMBER}
 
 URL=http://$IPADDR
 REFERER="$URL/index.html"
@@ -66,7 +68,6 @@ else
     exit
 fi
 
-
 # Get unread messages
 SMS=$(curl -s -b $COOKIEJAR --header "Referer: $REFERER" $URL_GET\?multi_data\=1\&isTest\=false\&sms_received_flag_flag\=0\&sts_received_flag_flag\=0\&cmd\=sms_unread_num)
 UNREAD_SMS=$(echo "$SMS" | jq --raw-output .sms_unread_num)
@@ -86,7 +87,8 @@ else
 
     if [ "$TAG" == "1" ]; then
       ID=$(echo $MESSAGE | jq --raw-output .id)
-      CONTENT=$(echo $MESSAGE | jq --raw-output .content | tr '\0' '\n' | xxd -r -p | tr -d '\0')
+      RAW_CONTENT=$(echo $MESSAGE | jq --raw-output .content)
+      CONTENT=$(echo $RAW_CONTENT | tr '\0' '\n' | xxd -r -p | tr -d '\0')
 
       echo "Message: $CONTENT"
 
@@ -96,7 +98,7 @@ else
       if [ "$MARK" != "success" ]; then
 	  echo "Message could not be marked as read."
       fi;
-  
+      
       # End right there if a blocked keyword is found
       for STR in "${BLOCKED[@]}"; do
         if [ "$(echo $CONTENT | grep -i "$STR")" ]; then
@@ -106,15 +108,15 @@ else
         fi
       done
 
-      # Send a push notification
-      echo "Sending a push notification"
-      curl -s \
-        --form-string "token=$PUSHOVER_TOKEN" \
-        --form-string "user=$PUSHOVER_USER" \
-        --form-string "message=$CONTENT" \
-        --form-string "title=ZTE SMS Forwarder" \
-        --form-string "device=iPhone8" \
-	https://api.pushover.net/1/messages.json
+      # Forward the message to the SMS forwarding number
+      AD=$(get_AD)
+      SMS_TIME=$(date +"%y;%m;%d;%H;%M;%S;%:::z" | sed -e 's/;/%3B/g' -e 's/+/%2B/g')
+      FWD=$(curl --trace fwd.txt -s -b $COOKIEJAR --header "Referer: $REFERER" -d "isTest=false&goformId=SEND_SMS&notCallback=true&Number=$FWDNO&sms_time=$SMS_TIME&MessageBody=$RAW_CONTENT&ID=-1&encode_type=GSM7_default&AD=$AD" $URL_SET | jq --raw-output .result)
+      if [ "$FWD" == "success" ]; then
+	  echo "Message forwarded successfully."
+      else
+	  echo "Message could not be forwarded."
+      fi
     fi
   done
 fi
