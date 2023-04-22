@@ -111,7 +111,7 @@ else
       # Forward the message to the SMS forwarding number
       AD=$(get_AD)
       SMS_TIME=$(date +"%y;%m;%d;%H;%M;%S;%:::z" | sed -e 's/;/%3B/g' -e 's/+/%2B/g')
-      FWD=$(curl --trace fwd.txt -s -b $COOKIEJAR --header "Referer: $REFERER" -d "isTest=false&goformId=SEND_SMS&notCallback=true&Number=$FWDNO&sms_time=$SMS_TIME&MessageBody=$RAW_CONTENT&ID=-1&encode_type=GSM7_default&AD=$AD" $URL_SET | jq --raw-output .result)
+      FWD=$(curl -s -b $COOKIEJAR --header "Referer: $REFERER" -d "isTest=false&goformId=SEND_SMS&notCallback=true&Number=$FWDNO&sms_time=$SMS_TIME&MessageBody=$RAW_CONTENT&ID=-1&encode_type=GSM7_default&AD=$AD" $URL_SET | jq --raw-output .result)
       if [ "$FWD" == "success" ]; then
 	  echo "Message forwarded successfully."
       else
