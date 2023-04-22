@@ -36,6 +36,7 @@ get_cmd() {
         | jq -r ".$1"
 }
 
+# Generate a one-time auth token for a SET operation
 get_AD () {
     # get RD
     RD=$(get_cmd "RD")
@@ -65,7 +66,6 @@ else
     exit
 fi
 
-# Generate auth token for SET operations
 
 # Get unread messages
 SMS=$(curl -s -b $COOKIEJAR --header "Referer: $REFERER" $URL_GET\?multi_data\=1\&isTest\=false\&sms_received_flag_flag\=0\&sts_received_flag_flag\=0\&cmd\=sms_unread_num)
