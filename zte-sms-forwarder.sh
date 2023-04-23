@@ -81,7 +81,7 @@ get_AD () {
         | awk '{print $1}'
 }
 
-echo "Logging in to ZTE"
+echo "Logging in to ZTE at" $(date)
 LOGIN=$(curl -s -c $COOKIEJAR --header "Referer: $REFERER" -d 'isTest=false&goformId=LOGIN&password='$PASSWD $URL_SET | jq --raw-output .result)
 
 if [ "$LOGIN" == "0" ]; then
